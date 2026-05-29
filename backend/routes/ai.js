@@ -1,53 +1,52 @@
 const express = require('express');
 const router = express.Router();
-const { Mistral } = require('@mistralai/mistralai');
 
-const client = new Mistral({ apiKey: process.env.MISTRAL_API_KEY });
+// NOTE: We do NOT use require('@mistralai/mistralai') here 
+// because it is an ES Module and will cause a crash on Vercel.
 
-const SYSTEM_PROMPT = `You are Dr. Green, an expert AI plant care specialist for Greenify, a premium plant care app in India. 
-You provide warm, knowledgeable, practical advice about plant care, diseases, pests, watering schedules, fertilizing, repotting, and plant identification. 
-Keep responses concise (2-4 paragraphs max). Use plant emojis occasionally. Always give actionable advice. 
-Currency is ₹ (Indian Rupees). Never break character.`;
-
-// POST /api/ai/consult
 router.post('/consult', async (req, res) => {
-  console.log('📩 Dr. Green request:', req.body.message?.substring(0, 80));
+    try {
+        const { message } = req.body;
 
-  const { message, history = [] } = req.body;
+        if (!message) {
+            return res.status(400).json({ error: "Message is required" });
+        }
 
-  if (!message || !message.trim()) {
-    return res.status(400).json({ error: 'No message provided' });
-  }
+        // 1. DYNAMIC IMPORT: This is the fix for the ERR_REQUIRE_ESM error.
+        // It allows a CommonJS file (require) to load an ES Module (import).
+        const { Mistral } = await import('@mistralai/mistralai');
 
-  try {
-    const messages = [
-      { role: 'system', content: SYSTEM_PROMPT },
-      // last 10 messages for context, avoids token limits
-      ...history.slice(-10).map(h => ({
-        role: h.role === 'bot' ? 'assistant' : h.role,
-        content: h.content,
-      })),
-      { role: 'user', content: message },
-    ];
+        // 2. Initialize the Mistral client inside the request handler
+        const client = new Mistral({ 
+            apiKey: process.env.MISTRAL_API_KEY 
+        });
 
-    const chatResponse = await client.chat.complete({
-      model: 'mistral-small-latest',
-      messages,
-      maxTokens: 1000,
-      temperature: 0.7,
-    });
+        // 3. Call the Mistral API
+        const chatResponse = await client.chat.complete({
+            model: 'mistral-tiny',
+            messages: [
+                { 
+                    role: 'system', 
+                    content: 'You are Dr. Green, a friendly and expert plant care assistant. Provide helpful advice on plant health, watering, and sunlight.' 
+                },
+                { 
+                    role: 'user', 
+                    content: message 
+                }
+            ],
+        });
 
-    const reply =
-      chatResponse.choices?.[0]?.message?.content ||
-      "Dr. Green is resting right now 🌿 — please try again!";
+        // 4. Send the response back to your React frontend
+        res.json({ 
+            reply: chatResponse.choices[0].message.content 
+        });
 
-    console.log('✅ Mistral responded successfully');
-    res.json({ reply });
-
-  } catch (error) {
-    console.error('❌ Mistral error:', error.message);
-    res.status(500).json({ error: 'AI Assistant error', details: error.message });
-  }
+    } catch (error) {
+        console.error("Dr. Green AI Error:", error);
+        res.status(500).json({ 
+            error: "Dr. Green is having trouble connecting to the AI. Please try again later." 
+        });
+    }
 });
 
 module.exports = router;
