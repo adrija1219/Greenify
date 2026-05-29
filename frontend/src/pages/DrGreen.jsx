@@ -61,7 +61,8 @@ export default function DrGreen({ initialQuestion }) {
     }))
 
     try {
-      const { data } = await axios.post('/api/ai/consult', {
+      const { data } = await axios.post('https://greenify-backend.vercel.app/api/ai/consult', {
+      
         message: q,
         history: historyToSend,
       })
