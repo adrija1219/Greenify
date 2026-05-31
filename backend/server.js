@@ -13,11 +13,10 @@ const app = express();
 
 // ── CORS ────────────────────────────────────────────────────
 app.use(cors({
-  origin: [
-    'http://localhost:5173',
-    'https://greenify-frontend-mocha.vercel.app',  // ← replace with your actual frontend URL
-  ],
-  credentials: true,
+  origin: 'https://greenify-frontend-mocha.vercel.app', // Your live frontend URL
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
 app.use(express.json());
 
